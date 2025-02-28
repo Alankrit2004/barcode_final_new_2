@@ -46,24 +46,24 @@ def generate_unique_id():
 def generate_barcode(product_name):
     try:
         unique_id = generate_unique_id()
-        save_dir = "/tmp"  # Render allows writing to /tmp
-        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
+        save_dir = "/tmp"
+        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
+
         barcode_path = f"{save_dir}/{unique_id}.png"
-
         ean = barcode.get_barcode_class('ean13')
+
+        # Create barcode and force PNG output
         barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
-        barcode_instance.save(barcode_path)
+        full_path = barcode_instance.save(barcode_path, options={"format": "PNG"})
 
-        if not os.path.exists(barcode_path):
-            raise FileNotFoundError(f"Barcode image was not created: {barcode_path}")
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
 
-        return barcode_path, unique_id
-    except PermissionError:
-        print("Permission error: Cannot write to the directory.")
-        return None, None
+        return full_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
+
 
 def generate_qr_code(name):
     try:
