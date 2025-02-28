@@ -46,7 +46,10 @@ def generate_unique_id():
 def generate_barcode(product_name):
     try:
         unique_id = generate_unique_id()
-        barcode_path = f"/tmp/{unique_id}.png"
+        save_dir = "/home/render/tmp"
+        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
+        barcode_path = f"{save_dir}/{unique_id}.png"
+
         ean = barcode.get_barcode_class('ean13')
         barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
         barcode_instance.save(barcode_path)
@@ -58,13 +61,17 @@ def generate_barcode(product_name):
 def generate_qr_code(name):
     try:
         unique_id = generate_unique_id()
-        qr_path = f"/tmp/{unique_id}.png"
+        save_dir = "/home/render/tmp"
+        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
+        qr_path = f"{save_dir}/{unique_id}.png"
+
         qr = qrcode.make(f"Product: {name}, ID: {unique_id}")
         qr.save(qr_path)
         return qr_path, unique_id
     except Exception as e:
         print(f"Error generating QR Code: {e}")
         return None, None
+
 
 def upload_to_supabase(image_path, unique_id, bucket):
     try:
