@@ -97,6 +97,40 @@ def upload_to_supabase(image_path, unique_id, bucket):
         print(f"Error uploading to Supabase: {e}")
         return None
 
+def store_product_in_db(name, unique_id, barcode_url):
+    """Stores barcode details in the database."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO products_new (name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
+            (name, unique_id, barcode_url)
+        )
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return True
+    except Exception as e:
+        print(f"Database Error (barcode): {e}")
+        return False
+
+def store_qr_in_db(name, unique_id, qr_url):
+    """Stores QR code details in the database."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
+            (name, unique_id, qr_url)
+        )
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return True
+    except Exception as e:
+        print(f"Database Error (QR Code): {e}")
+        return False
+
 @app.route('/generate_barcode', methods=['POST'])
 def generate_barcode_api():
     data = request.json
@@ -116,6 +150,10 @@ def generate_barcode_api():
         if not barcode_url:
             return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
 
+        # Store in database
+        if not store_product_in_db(name, unique_id, barcode_url):
+            return jsonify({"isSuccess": False, "message": "Failed to store barcode in database"}), 500
+
         barcode_urls.append({"unique_id": unique_id, "barcode_image_path": barcode_url})
 
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
@@ -131,17 +169,8 @@ def generate_qr_api():
 
     qr_urls = []
     for _ in range(quantity):
-        qr_path, unique_id = generate_qr_code(name)
-        if not qr_path:
-            return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
+        qr_path, unique_id = generate_qr_code
 
-        qr_url = upload_to_supabase(qr_path, unique_id, QR_SUPABASE_BUCKET)
-        if not qr_url:
-            return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
-
-        qr_urls.append({"unique_id": unique_id, "qr_code_image_path": qr_url})
-
-    return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
 
 if __name__ == '__main__':
     app.run(port=5001, threaded=True)
