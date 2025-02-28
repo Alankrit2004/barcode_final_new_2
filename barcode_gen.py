@@ -46,14 +46,21 @@ def generate_unique_id():
 def generate_barcode(product_name):
     try:
         unique_id = generate_unique_id()
-        save_dir = "/home/render/tmp"
-        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
+        save_dir = "/tmp"  # Render allows writing to /tmp
+        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
         barcode_path = f"{save_dir}/{unique_id}.png"
 
         ean = barcode.get_barcode_class('ean13')
         barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
         barcode_instance.save(barcode_path)
+
+        if not os.path.exists(barcode_path):
+            raise FileNotFoundError(f"Barcode image was not created: {barcode_path}")
+
         return barcode_path, unique_id
+    except PermissionError:
+        print("Permission error: Cannot write to the directory.")
+        return None, None
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
@@ -61,16 +68,24 @@ def generate_barcode(product_name):
 def generate_qr_code(name):
     try:
         unique_id = generate_unique_id()
-        save_dir = "/home/render/tmp"
-        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
+        save_dir = "/tmp"
+        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
         qr_path = f"{save_dir}/{unique_id}.png"
 
         qr = qrcode.make(f"Product: {name}, ID: {unique_id}")
         qr.save(qr_path)
+
+        if not os.path.exists(qr_path):
+            raise FileNotFoundError(f"QR Code image was not created: {qr_path}")
+
         return qr_path, unique_id
+    except PermissionError:
+        print("Permission error: Cannot write to the directory.")
+        return None, None
     except Exception as e:
         print(f"Error generating QR Code: {e}")
         return None, None
+
 
 
 def upload_to_supabase(image_path, unique_id, bucket):
