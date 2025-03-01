@@ -91,6 +91,22 @@ def upload_to_supabase(image_path, unique_id, bucket):
         print(f"Error uploading to Supabase: {e}")
         return None
 
+def store_barcode_in_db(name, unique_id, barcode_url):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO barcodes_new (name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
+            (name, unique_id, barcode_url)
+        )
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return True
+    except Exception as e:
+        print(f"Database Error (Barcode): {e}")
+        return False
+        
 def store_qr_in_db(name, unique_id, qr_url):
     try:
         conn = get_db_connection()
