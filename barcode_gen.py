@@ -98,7 +98,6 @@ def generate_barcode_api():
 
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
 
-@app.route('/generate_qrcode', methods=['POST'])
 def store_qr_in_db(name, unique_id, qr_url):
     try:
         conn = get_db_connection()
@@ -115,6 +114,8 @@ def store_qr_in_db(name, unique_id, qr_url):
         print(f"Database Error (QR Code): {e}")
         return False
 
+
+@app.route('/generate_qrcode', methods=['POST'])
 def generate_qr_api():
     data = request.json
     name = data.get("name")
@@ -133,11 +134,14 @@ def generate_qr_api():
         if not qr_url:
             return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
 
+        # Store in database
         if not store_qr_in_db(name, unique_id, qr_url):
             return jsonify({"isSuccess": False, "message": "Failed to store QR Code in database"}), 500
+
         qr_urls.append({"unique_id": unique_id, "qr_code_image_path": qr_url})
 
-    return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
+    return jsonify({"isSuccess": True, "message": "QR Codes generated successfully", "qr_codes": qr_urls}), 201
+
 
 @app.route('/scan_code', methods=['POST'])
 def scan_code():
