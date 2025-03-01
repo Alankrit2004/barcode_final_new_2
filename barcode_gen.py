@@ -169,7 +169,41 @@ def generate_qr_api():
 
     qr_urls = []
     for _ in range(quantity):
-        qr_path, unique_id = generate_qr_code
+        qr_path, unique_id = generate_qr_code(name)(name)
+        if not qr_path:
+            return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
+
+        qr_url = upload_to_supabase(qr_path, unique_id, QR_SUPABASE_BUCKET)
+        if not qr_url:
+            return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
+
+        qr_urls.append({"unique_id": unique_id, "qr_code_image_path": qr_url})
+
+    return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
+
+
+@app.route('/scan_code', methods=['POST'])
+def scan_code():
+    data = request.json
+    unique_id = data.get("unique_id")
+    if not unique_id:
+        return jsonify({"isSuccess": False, "message": "Missing unique ID"}), 400
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM products_new WHERE unique_id = %s", (unique_id,))
+        product = cur.fetchone()
+        cur.close()
+        release_db_connection(conn)
+        
+        if not product:
+            return jsonify({"isSuccess": False, "message": "Product not found"}), 404
+        
+        return jsonify({"isSuccess": True, "message": "Product found", "name": product[0]}), 200
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return jsonify({"isSuccess": False, "message": "Database error"}), 500
 
 
 if __name__ == '__main__':
