@@ -40,35 +40,26 @@ def get_db_connection():
 def release_db_connection(conn):
     db_pool.putconn(conn)
 
-def generate_unique_id():
-    return str(int(time.time() * 1000))  # Unique timestamp-based ID
+def generate_unique_id(name):
+    return f"{name}{int(time.time() * 1000)}"  # Unique timestamp-based ID
 
-def generate_barcode(product_name):
+def generate_barcode(name):
     try:
-        unique_id = generate_unique_id()
-        save_dir = "/tmp"
-        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
-
-        barcode_path = f"{save_dir}/{unique_id}"
+        unique_id = generate_unique_id(name)
+        barcode_path = f"/tmp/{unique_id}.png"
         ean = barcode.get_barcode_class('ean13')
-        barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
-
-        full_path = barcode_instance.save(barcode_path)  # Save returns actual path
-
-        if not os.path.exists(full_path):
-            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
-
-        return full_path, unique_id
+        barcode_instance = ean(unique_id, writer=ImageWriter())
+        barcode_instance.save(barcode_path)
+        return barcode_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
 
-
 def generate_qr_code(name):
     try:
-        unique_id = generate_unique_id()
+        unique_id = generate_unique_id(name)
         qr_path = f"/tmp/{unique_id}.png"
-        qr = qrcode.make(f"Product: {name}, ID: {unique_id}")
+        qr = qrcode.make(unique_id)
         qr.save(qr_path)
         return qr_path, unique_id
     except Exception as e:
@@ -107,6 +98,7 @@ def generate_barcode_api():
 
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
 
+@app.route('/generate_qrcode', methods=['POST'])
 def store_qr_in_db(name, unique_id, qr_url):
     try:
         conn = get_db_connection()
@@ -123,8 +115,6 @@ def store_qr_in_db(name, unique_id, qr_url):
         print(f"Database Error (QR Code): {e}")
         return False
 
-
-@app.route('/generate_qrcode', methods=['POST'])
 def generate_qr_api():
     data = request.json
     name = data.get("name")
@@ -143,14 +133,11 @@ def generate_qr_api():
         if not qr_url:
             return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
 
-        # Store in database
         if not store_qr_in_db(name, unique_id, qr_url):
             return jsonify({"isSuccess": False, "message": "Failed to store QR Code in database"}), 500
-
         qr_urls.append({"unique_id": unique_id, "qr_code_image_path": qr_url})
 
-    return jsonify({"isSuccess": True, "message": "QR Codes generated successfully", "qr_codes": qr_urls}), 201
-
+    return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
 
 @app.route('/scan_code', methods=['POST'])
 def scan_code():
@@ -162,7 +149,7 @@ def scan_code():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT name FROM products_new WHERE unique_id = %s UNION SELECT name FROM qr_codes_new WHERE unique_id = %s", (unique_id, unique_id))
+        cur.execute("SELECT unique_id FROM products_new WHERE unique_id = %s UNION SELECT unique_id FROM qr_codes_new WHERE unique_id = %s", (unique_id, unique_id))
         product = cur.fetchone()
         cur.close()
         release_db_connection(conn)
@@ -174,6 +161,7 @@ def scan_code():
     except Exception as e:
         print(f"Database Error: {e}")
         return jsonify({"isSuccess": False, "message": f"Database error: {e}"}), 500
+
 
 
 if __name__ == '__main__':
