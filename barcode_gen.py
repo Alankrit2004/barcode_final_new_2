@@ -21,7 +21,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
     "host": os.getenv("DB_HOST"),
     "port": os.getenv("DB_PORT"),
-    "sslmode": "disable"
+    "sslmode": "require"
 }
 
 db_pool = pool.SimpleConnectionPool(1, 10, **DB_CONFIG)
@@ -43,29 +43,23 @@ def release_db_connection(conn):
 def generate_unique_id(name):
     return f"{name}{int(time.time() * 1000)}"  # Unique timestamp-based ID
 
-def generate_barcode(product_name):
+def generate_barcode(name):
+    """Generates a Code-128 barcode and saves it to /tmp."""
     try:
-        unique_id = generate_unique_id(product_name)  # ✅ Includes name + timestamp
-        
+        unique_id = generate_unique_id(name)
         save_dir = "/tmp"
-        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
-
-        barcode_path = f"{save_dir}/{unique_id}"
-        code128 = barcode.get_barcode_class('code128')  # ✅ Use Code-128
+os.makedirs(save_dir, exist_ok=True)  # Ensure /tmp directory exists
+barcode_path = f"{save_dir}/{unique_id}.png"
+        code128 = barcode.get_barcode_class('code128')
         barcode_instance = code128(unique_id, writer=ImageWriter())
-
-        full_path = barcode_instance.save(barcode_path)  # Save returns actual path
-
-        if not os.path.exists(full_path):
-            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
-
-        return full_path, unique_id
+        barcode_instance.save(barcode_path)
+        return barcode_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
 
-
 def generate_qr_code(name):
+    """Generates a QR code and saves it to /tmp."""
     try:
         unique_id = generate_unique_id(name)
         qr_path = f"/tmp/{unique_id}.png"
@@ -86,6 +80,7 @@ def upload_to_supabase(image_path, unique_id, bucket):
         return None
 
 @app.route('/generate_barcode', methods=['POST'])
+@app.route('/generate_barcode', methods=['POST'])
 def generate_barcode_api():
     data = request.json
     name = data.get("name")
@@ -104,12 +99,15 @@ def generate_barcode_api():
         if not barcode_url:
             return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
 
+        if not store_qr_in_db(name, unique_id, barcode_url):
+            return jsonify({"isSuccess": False, "message": "Failed to store Barcode in database"}), 500
         barcode_urls.append({"unique_id": unique_id, "barcode_image_path": barcode_url})
 
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
 
 @app.route('/generate_qrcode', methods=['POST'])
 def store_qr_in_db(name, unique_id, qr_url):
+    """Stores QR code details in the database."""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -125,6 +123,7 @@ def store_qr_in_db(name, unique_id, qr_url):
         print(f"Database Error (QR Code): {e}")
         return False
 
+@app.route('/generate_qrcode', methods=['POST'])
 def generate_qr_api():
     data = request.json
     name = data.get("name")
