@@ -50,15 +50,19 @@ def generate_barcode(name):
         save_dir = "/tmp"
         os.makedirs(save_dir, exist_ok=True)  # Ensure /tmp directory exists
 
-        barcode_path = f"{save_dir}/{unique_id}.png"
+        barcode_path = f"{save_dir}/{unique_id}"
         code128 = barcode.get_barcode_class('code128')
         barcode_instance = code128(unique_id, writer=ImageWriter())
-        barcode_instance.save(barcode_path)
+        full_path = barcode_instance.save(barcode_path)  # Save returns actual file path
 
-        return barcode_path, unique_id
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
+
+        return full_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
+
 
 
 def generate_qr_code(name):
@@ -75,14 +79,22 @@ def generate_qr_code(name):
 
 def upload_to_supabase(image_path, unique_id, bucket):
     try:
+        if not os.path.exists(image_path):
+            print(f"Error: File not found before upload: {image_path}")
+            return None
+
+        print(f"Uploading file: {image_path}")  # Debugging log
+
         with open(image_path, "rb") as f:
             supabase.storage.from_(bucket).upload(f"static/{unique_id}.png", f, {"content-type": "image/png"})
+
         return f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/static/{unique_id}.png"
     except Exception as e:
         print(f"Error uploading to Supabase: {e}")
         return None
 
-@app.route('/generate_barcode', methods=['POST'])
+
+
 @app.route('/generate_barcode', methods=['POST'])
 def generate_barcode_api():
     data = request.json
@@ -107,24 +119,6 @@ def generate_barcode_api():
         barcode_urls.append({"unique_id": unique_id, "barcode_image_path": barcode_url})
 
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
-
-@app.route('/generate_qrcode', methods=['POST'])
-def store_qr_in_db(name, unique_id, qr_url):
-    """Stores QR code details in the database."""
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
-            (name, unique_id, qr_url)
-        )
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
-        return True
-    except Exception as e:
-        print(f"Database Error (QR Code): {e}")
-        return False
 
 @app.route('/generate_qrcode', methods=['POST'])
 def generate_qr_api():
