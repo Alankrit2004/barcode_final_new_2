@@ -63,8 +63,6 @@ def generate_barcode(name):
         print(f"Error generating barcode: {e}")
         return None, None
 
-
-
 def generate_qr_code(name):
     """Generates a QR code and saves it to /tmp."""
     try:
@@ -87,13 +85,27 @@ def upload_to_supabase(image_path, unique_id, bucket):
 
         with open(image_path, "rb") as f:
             supabase.storage.from_(bucket).upload(f"static/{unique_id}.png", f, {"content-type": "image/png"})
-
+        
         return f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/static/{unique_id}.png"
     except Exception as e:
         print(f"Error uploading to Supabase: {e}")
         return None
 
-
+def store_qr_in_db(name, unique_id, qr_url):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
+            (name, unique_id, qr_url)
+        )
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return True
+    except Exception as e:
+        print(f"Database Error (QR Code): {e}")
+        return False
 
 @app.route('/generate_barcode', methods=['POST'])
 def generate_barcode_api():
@@ -114,8 +126,6 @@ def generate_barcode_api():
         if not barcode_url:
             return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
 
-        if not store_qr_in_db(name, unique_id, barcode_url):
-            return jsonify({"isSuccess": False, "message": "Failed to store Barcode in database"}), 500
         barcode_urls.append({"unique_id": unique_id, "barcode_image_path": barcode_url})
 
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
@@ -141,32 +151,10 @@ def generate_qr_api():
 
         if not store_qr_in_db(name, unique_id, qr_url):
             return jsonify({"isSuccess": False, "message": "Failed to store QR Code in database"}), 500
+
         qr_urls.append({"unique_id": unique_id, "qr_code_image_path": qr_url})
 
     return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
-
-@app.route('/scan_code', methods=['POST'])
-def scan_code():
-    data = request.json
-    unique_id = data.get("unique_id")
-    if not unique_id:
-        return jsonify({"isSuccess": False, "message": "Missing unique ID"}), 400
-    
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT unique_id FROM products_new WHERE unique_id = %s UNION SELECT unique_id FROM qr_codes_new WHERE unique_id = %s", (unique_id, unique_id))
-        product = cur.fetchone()
-        cur.close()
-        release_db_connection(conn)
-        
-        if not product:
-            return jsonify({"isSuccess": False, "message": "Product not found"}), 404
-        
-        return jsonify({"isSuccess": True, "message": "Product found", "name": product[0]}), 200
-    except Exception as e:
-        print(f"Database Error: {e}")
-        return jsonify({"isSuccess": False, "message": f"Database error: {e}"}), 500
 
 if __name__ == '__main__':
     app.run(port=5001, threaded=True)
