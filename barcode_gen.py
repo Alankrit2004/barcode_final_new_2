@@ -169,7 +169,7 @@ def generate_qr_api():
 
     qr_urls = []
     for _ in range(quantity):
-        qr_path, unique_id = generate_qr_code(name)(name)
+        qr_path, unique_id = generate_qr_code(name)
         if not qr_path:
             return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
 
@@ -181,6 +181,13 @@ def generate_qr_api():
 
     return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
 
+@app.route('/scan_code', methods=['POST'])
+def scan_code():
+    data = request.json
+    unique_id = data.get("unique_id")
+    if not unique_id:
+        return jsonify({"isSuccess": False, "message": "Missing unique ID"}), 400
+ 
 
 @app.route('/scan_code', methods=['POST'])
 def scan_code():
