@@ -43,19 +43,26 @@ def release_db_connection(conn):
 def generate_unique_id(name):
     return f"{name}{int(time.time() * 1000)}"  # Unique timestamp-based ID
 
-def generate_barcode(name):
+def generate_barcode(product_name):
     try:
-        unique_id = generate_unique_id(name)
+        unique_id = generate_unique_id()
         save_dir = "/tmp"
-os.makedirs(save_dir, exist_ok=True)
-barcode_path = f"{save_dir}/{unique_id}.png"
-        code128 = barcode.get_barcode_class('code128')
-        barcode_instance = code128(unique_id, writer=ImageWriter())
-        barcode_instance.save(barcode_path)
-        return barcode_path, unique_id
+        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
+
+        barcode_path = f"{save_dir}/{unique_id}"
+        ean = barcode.get_barcode_class('ean13')
+        barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
+
+        full_path = barcode_instance.save(barcode_path)  # Save returns actual path
+
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
+
+        return full_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
+
 
 def generate_qr_code(name):
     try:
