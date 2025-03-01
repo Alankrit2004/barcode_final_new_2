@@ -172,5 +172,32 @@ def generate_qr_api():
 
     return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
 
+@app.route('/scan_code', methods=['POST'])
+def scan_code():
+    data = request.json
+    unique_id = data.get("unique_id")
+    if not unique_id:
+        return jsonify({"isSuccess": False, "message": "Missing unique ID"}), 400
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT unique_id FROM barcodes_new WHERE unique_id = %s UNION SELECT unique_id FROM qr_codes_new WHERE unique_id = %s", 
+            (unique_id, unique_id)
+        )
+        product = cur.fetchone()
+        cur.close()
+        release_db_connection(conn)
+        
+        if not product:
+            return jsonify({"isSuccess": False, "message": "Product not found"}), 404
+        
+        return jsonify({"isSuccess": True, "message": "Product found", "unique_id": product[0]}), 200
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return jsonify({"isSuccess": False, "message": f"Database error: {e}"}), 500
+
+
 if __name__ == '__main__':
     app.run(port=5001, threaded=True)
