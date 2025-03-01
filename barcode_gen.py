@@ -48,15 +48,18 @@ def generate_barcode(name):
     try:
         unique_id = generate_unique_id(name)
         save_dir = "/tmp"
-os.makedirs(save_dir, exist_ok=True)  # Ensure /tmp directory exists
-barcode_path = f"{save_dir}/{unique_id}.png"
+        os.makedirs(save_dir, exist_ok=True)  # Ensure /tmp directory exists
+
+        barcode_path = f"{save_dir}/{unique_id}.png"
         code128 = barcode.get_barcode_class('code128')
         barcode_instance = code128(unique_id, writer=ImageWriter())
         barcode_instance.save(barcode_path)
+
         return barcode_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
+
 
 def generate_qr_code(name):
     """Generates a QR code and saves it to /tmp."""
