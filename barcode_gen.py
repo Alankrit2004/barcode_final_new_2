@@ -21,7 +21,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
     "host": os.getenv("DB_HOST"),
     "port": os.getenv("DB_PORT"),
-    "sslmode": "disable"
+    "sslmode": "require"
 }
 
 db_pool = pool.SimpleConnectionPool(1, 10, **DB_CONFIG)
@@ -41,15 +41,18 @@ def release_db_connection(conn):
     db_pool.putconn(conn)
 
 def generate_unique_id(name):
-    return f"{name}{int(time.time() * 1000)}"  # Unique timestamp-based ID
+    return f"{name}{int(time.time() * 1000)}"
 
 def generate_barcode(name):
     try:
         unique_id = generate_unique_id(name)
         barcode_path = f"/tmp/{unique_id}.png"
-        ean = barcode.get_barcode_class('ean13')
-        barcode_instance = ean(unique_id, writer=ImageWriter())
+
+        # Use Code128 instead of EAN-13 to support alphanumeric unique IDs
+        code128 = barcode.get_barcode_class('code128')
+        barcode_instance = code128(unique_id, writer=ImageWriter())
         barcode_instance.save(barcode_path)
+
         return barcode_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
@@ -75,6 +78,23 @@ def upload_to_supabase(image_path, unique_id, bucket):
         print(f"Error uploading to Supabase: {e}")
         return None
 
+def store_qr_in_db(name, unique_id, qr_url):
+    """Stores QR code details in the database."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
+            (name, unique_id, qr_url)
+        )
+        conn.commit()
+        cur.close()
+        release_db_connection(conn)
+        return True
+    except Exception as e:
+        print(f"Database Error (QR Code): {e}")
+        return False
+
 @app.route('/generate_barcode', methods=['POST'])
 def generate_barcode_api():
     data = request.json
@@ -99,22 +119,6 @@ def generate_barcode_api():
     return jsonify({"isSuccess": True, "message": "Barcodes generated", "barcodes": barcode_urls}), 201
 
 @app.route('/generate_qrcode', methods=['POST'])
-def store_qr_in_db(name, unique_id, qr_url):
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
-            (name, unique_id, qr_url)
-        )
-        conn.commit()
-        cur.close()
-        release_db_connection(conn)
-        return True
-    except Exception as e:
-        print(f"Database Error (QR Code): {e}")
-        return False
-
 def generate_qr_api():
     data = request.json
     name = data.get("name")
@@ -157,12 +161,10 @@ def scan_code():
         if not product:
             return jsonify({"isSuccess": False, "message": "Product not found"}), 404
         
-        return jsonify({"isSuccess": True, "message": "Product found", "name": product[0]}), 200
+        return jsonify({"isSuccess": True, "message": "Product found", "unique_id": product[0]}), 200
     except Exception as e:
         print(f"Database Error: {e}")
         return jsonify({"isSuccess": False, "message": f"Database error: {e}"}), 500
-
-
 
 if __name__ == '__main__':
     app.run(port=5001, threaded=True)
