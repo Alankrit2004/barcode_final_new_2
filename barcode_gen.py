@@ -183,7 +183,7 @@ def scan_code():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "SELECT unique_id FROM barcodes_new WHERE unique_id = %s UNION SELECT unique_id FROM qr_codes_new WHERE unique_id = %s", 
+            "SELECT unique_id FROM prodcuts_new WHERE unique_id = %s UNION SELECT unique_id FROM qr_codes_new WHERE unique_id = %s", 
             (unique_id, unique_id)
         )
         product = cur.fetchone()
