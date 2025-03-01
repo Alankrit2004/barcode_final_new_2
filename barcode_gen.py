@@ -182,15 +182,7 @@ def generate_qr_api():
     return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
 
 @app.route('/scan_code', methods=['POST'])
-def scan_code():
-    data = request.json
-    unique_id = data.get("unique_id")
-    if not unique_id:
-        return jsonify({"isSuccess": False, "message": "Missing unique ID"}), 400
- 
-
-@app.route('/scan_code', methods=['POST'])
-def scan_code():
+def scan_code_api():
     data = request.json
     unique_id = data.get("unique_id")
     if not unique_id:
@@ -211,6 +203,7 @@ def scan_code():
     except Exception as e:
         print(f"Database Error: {e}")
         return jsonify({"isSuccess": False, "message": "Database error"}), 500
+
 
 
 if __name__ == '__main__':
