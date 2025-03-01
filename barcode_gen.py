@@ -46,14 +46,23 @@ def generate_unique_id():
 def generate_barcode(product_name):
     try:
         unique_id = generate_unique_id()
-        barcode_path = f"/tmp/{unique_id}.png"
+        save_dir = "/tmp"
+        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
+
+        barcode_path = f"{save_dir}/{unique_id}"
         ean = barcode.get_barcode_class('ean13')
         barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
-        barcode_instance.save(barcode_path)
-        return barcode_path, unique_id
+
+        full_path = barcode_instance.save(barcode_path)  # Save returns actual path
+
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
+
+        return full_path, unique_id
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
+
 
 def generate_qr_code(name):
     try:
