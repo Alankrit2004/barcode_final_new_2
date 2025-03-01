@@ -45,13 +45,14 @@ def generate_unique_id(name):
 
 def generate_barcode(product_name):
     try:
-        unique_id = generate_unique_id()
+        unique_id = generate_unique_id(product_name)  # ✅ Includes name + timestamp
+        
         save_dir = "/tmp"
-        os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
+        os.makedirs(save_dir, exist_ok=True)  # Ensure directory exists
 
         barcode_path = f"{save_dir}/{unique_id}"
-        ean = barcode.get_barcode_class('ean13')
-        barcode_instance = ean(unique_id.zfill(12), writer=ImageWriter())
+        code128 = barcode.get_barcode_class('code128')  # ✅ Use Code-128
+        barcode_instance = code128(unique_id, writer=ImageWriter())
 
         full_path = barcode_instance.save(barcode_path)  # Save returns actual path
 
