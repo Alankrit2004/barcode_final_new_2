@@ -96,7 +96,7 @@ def store_barcode_in_db(name, unique_id, barcode_url):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO barcodes_new (name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
+            "INSERT INTO products_new(name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
             (name, unique_id, barcode_url)
         )
         conn.commit()
