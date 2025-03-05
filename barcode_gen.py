@@ -212,7 +212,7 @@ def generate_qr_code_new(data):
         return None, None
 
 @app.route('/generate_barcode_v2', methods=['POST'])
-def generate_barcode_api():
+def generate_barcode_api_v2():
     data = request.json
     value = data.get("value")
 
@@ -232,7 +232,7 @@ def generate_barcode_api():
     return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
 
 @app.route('/generate_qrcode_v2', methods=['POST'])
-def generate_qr_api():
+def generate_qr_api_v2():
     data = request.json
     value = data.get("value")
 
