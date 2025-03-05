@@ -172,31 +172,84 @@ def generate_qr_api():
 
     return jsonify({"isSuccess": True, "message": "QR Codes generated", "qr_codes": qr_urls}), 201
 
-@app.route('/scan_code', methods=['POST'])
-def scan_code():
-    data = request.json
-    unique_id = data.get("unique_id")
-    if not unique_id:
-        return jsonify({"isSuccess": False, "message": "Missing unique ID"}), 400
-    
+#-------------------------------------------------------------------------------------------------------------------
+
+def generate_unique_id_new(data):
+    return f"{hash(data)}{int(time.time() * 1000)}"  # Unique ID based on hash and timestamp
+
+# Barcode Generation
+
+def generate_barcode_new(data):
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT unique_id FROM products_new WHERE unique_id = %s UNION SELECT unique_id FROM qr_codes_new WHERE unique_id = %s", 
-            (unique_id, unique_id)
-        )
-        product = cur.fetchone()
-        cur.close()
-        release_db_connection(conn)
-        
-        if not product:
-            return jsonify({"isSuccess": False, "message": "Product not found"}), 404
-        
-        return jsonify({"isSuccess": True, "message": "Product found", "unique_id": product[0]}), 200
+        unique_id = generate_unique_id_new(data)
+        save_dir = "/tmp"
+        os.makedirs(save_dir, exist_ok=True)
+
+        barcode_path = f"{save_dir}/{unique_id}"
+        code128 = barcode.get_barcode_class('code128')
+        barcode_instance = code128(data, writer=ImageWriter())
+        full_path = barcode_instance.save(barcode_path)
+
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"Barcode image was not created: {full_path}")
+
+        return full_path, unique_id
     except Exception as e:
-        print(f"Database Error: {e}")
-        return jsonify({"isSuccess": False, "message": f"Database error: {e}"}), 500
+        print(f"Error generating barcode: {e}")
+        return None, None
+
+# QR Code Generation
+
+def generate_qr_code_new(data):
+    try:
+        unique_id = generate_unique_id_new(data)
+        qr_path = f"/tmp/{unique_id}.png"
+        qr = qrcode.make(data)
+        qr.save(qr_path)
+        return qr_path, unique_id
+    except Exception as e:
+        print(f"Error generating QR Code: {e}")
+        return None, None
+
+@app.route('/generate_barcode_v2', methods=['POST'])
+def generate_barcode_api():
+    data = request.json
+    value = data.get("value")
+
+    if not value:
+        return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
+
+    barcode_path, unique_id = generate_barcode_new(value)
+    if not barcode_path:
+        return jsonify({"isSuccess": False, "message": "Failed to generate barcode"}), 500
+
+    barcode_url = upload_to_supabase(barcode_path, unique_id, SUPABASE_BUCKET)
+    if not barcode_url:
+        return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
+
+    store_barcode_in_db(value, unique_id, barcode_url)
+
+    return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
+
+@app.route('/generate_qrcode_v2', methods=['POST'])
+def generate_qr_api():
+    data = request.json
+    value = data.get("value")
+
+    if not value:
+        return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
+
+    qr_path, unique_id = generate_qr_code_new(value)
+    if not qr_path:
+        return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
+
+    qr_url = upload_to_supabase(qr_path, unique_id, QR_SUPABASE_BUCKET)
+    if not qr_url:
+        return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
+
+    store_qr_in_db(value, unique_id, qr_url)
+
+    return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url}}), 201
 
 
 if __name__ == '__main__':
