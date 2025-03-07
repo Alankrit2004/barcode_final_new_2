@@ -175,7 +175,8 @@ def generate_qr_api():
 #-------------------------------------------------------------------------------------------------------------------
 
 def generate_unique_id_new(data):
-    return f"{hash(data)}{int(time.time() * 1000)}"  # Unique ID based on hash and timestamp
+    return f"{abs(hash(data))}{int(time.time() * 1000)}"  # Ensure hash value is positive
+  # Unique ID based on hash and timestamp
 
 # Barcode Generation
 
