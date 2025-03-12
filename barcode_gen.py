@@ -161,7 +161,10 @@ def store_qr_in_db(name, unique_id, qr_url, qr_path):
         return True
     except Exception as e:
         print(f"Database Error (QR Code): {e}")
+        if conn:
+            conn.rollback()  # 🚀 Ensure transaction rollback
         return False
+
 
 
 @app.route('/generate_barcode', methods=['POST'])
