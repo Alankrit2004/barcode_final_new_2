@@ -10,6 +10,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 import qrcode
 import time
+from PIL import Image
 
 load_dotenv()
 
@@ -77,9 +78,19 @@ def generate_qr_code(name):
         return None, None
 
 
+def resize_image(image_path, max_width, max_height):
+    """Resizes the image to fit within the specified dimensions."""
+    try:
+        with Image.open(image_path) as img:
+            img.thumbnail((max_width, max_height))
+            img.save(image_path)
+    except Exception as e:
+        print(f"Error resizing image: {e}")
+
 def image_to_base64(image_path):
     """Converts an image file to a Base64 string."""
     try:
+        resize_image(image_path, 300, 300)  # Resize image to fit within 300x300 pixels
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
