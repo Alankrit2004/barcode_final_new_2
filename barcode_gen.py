@@ -103,21 +103,6 @@ def upload_to_supabase(image_path, unique_id, bucket):
         print(f"Error uploading to Supabase: {e}")
         return None
 
-# def store_barcode_in_db(name, unique_id, barcode_url):
-#     try:
-#         conn = get_db_connection()
-#         cur = conn.cursor()
-#         cur.execute(
-#             "INSERT INTO products_new(name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
-#             (name, unique_id, barcode_url)
-#         )
-#         conn.commit()
-#         cur.close()
-#         release_db_connection(conn)
-#         return True
-#     except Exception as e:
-#         print(f"Database Error (Barcode): {e}")
-#         return False
 
 def store_barcode_in_db(name, unique_id, barcode_url, barcode_path):
     try:
@@ -139,22 +124,6 @@ def store_barcode_in_db(name, unique_id, barcode_url, barcode_path):
         print(f"Database Error (Barcode): {e}")
         return False
 
-        
-# def store_qr_in_db(name, unique_id, qr_url):
-#     try:
-#         conn = get_db_connection()
-#         cur = conn.cursor()
-#         cur.execute(
-#             "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
-#             (name, unique_id, qr_url)
-#         )
-#         conn.commit()
-#         cur.close()
-#         release_db_connection(conn)
-#         return True
-#     except Exception as e:
-#         print(f"Database Error (QR Code): {e}")
-#         return False
 
 def store_qr_in_db(name, unique_id, qr_url, qr_path):
     try:
@@ -265,47 +234,6 @@ def generate_qr_code_new(data):
         print(f"Error generating QR Code: {e}")
         return None, None
 
-# @app.route('/generate_barcode_v2', methods=['POST'])
-# def generate_barcode_api_v2():
-#     data = request.json
-#     value = data.get("value")
-
-#     if not value:
-#         return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
-
-#     barcode_path, unique_id = generate_barcode_new(value)
-#     if not barcode_path:
-#         return jsonify({"isSuccess": False, "message": "Failed to generate barcode"}), 500
-
-#     barcode_url = upload_to_supabase(barcode_path, unique_id, SUPABASE_BUCKET)
-#     if not barcode_url:
-#         return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
-
-#     store_barcode_in_db(value, unique_id, barcode_url)
-
-#     return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
-
-# @app.route('/generate_qrcode_v2', methods=['POST'])
-# def generate_qr_api_v2():
-#     data = request.json
-#     value = data.get("value")
-
-#     if not value:
-#         return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
-
-#     qr_path, unique_id = generate_qr_code_new(value)
-#     if not qr_path:
-#         return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
-
-#     qr_url = upload_to_supabase(qr_path, unique_id, QR_SUPABASE_BUCKET)
-#     if not qr_url:
-#         return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
-
-#     store_qr_in_db(value, unique_id, qr_url)
-
-#     return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url}}), 201
-
-
 @app.route('/generate_barcode_v2', methods=['POST'])
 def generate_barcode_api_v2():
     data = request.json
@@ -324,7 +252,9 @@ def generate_barcode_api_v2():
 
     store_barcode_in_db(value, unique_id, barcode_url, barcode_path)
 
-    return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
+    barcode_base64 = image_to_base64(barcode_path)
+
+    return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url, "barcode_image_base64": barcode_base64}}), 201
 
 
 @app.route('/generate_qrcode_v2', methods=['POST'])
@@ -345,7 +275,51 @@ def generate_qr_api_v2():
 
     store_qr_in_db(value, unique_id, qr_url, qr_path)
 
-    return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url}}), 201
+    qr_base64 = image_to_base64(qr_path)
+
+    return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url, "qr_code_image_base64": qr_base64}}), 201
+
+
+# @app.route('/generate_barcode_v2', methods=['POST'])
+# def generate_barcode_api_v2():
+#     data = request.json
+#     value = data.get("value")
+
+#     if not value:
+#         return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
+
+#     barcode_path, unique_id = generate_barcode_new(value)
+#     if not barcode_path:
+#         return jsonify({"isSuccess": False, "message": "Failed to generate barcode"}), 500
+
+#     barcode_url = upload_to_supabase(barcode_path, unique_id, SUPABASE_BUCKET)
+#     if not barcode_url:
+#         return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
+
+#     store_barcode_in_db(value, unique_id, barcode_url, barcode_path)
+
+#     return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
+
+
+# @app.route('/generate_qrcode_v2', methods=['POST'])
+# def generate_qr_api_v2():
+#     data = request.json
+#     value = data.get("value")
+
+#     if not value:
+#         return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
+
+#     qr_path, unique_id = generate_qr_code_new(value)
+#     if not qr_path:
+#         return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
+
+#     qr_url = upload_to_supabase(qr_path, unique_id, QR_SUPABASE_BUCKET)
+#     if not qr_url:
+#         return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
+
+#     store_qr_in_db(value, unique_id, qr_url, qr_path)
+
+#     return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url}}), 201
 
 
 
