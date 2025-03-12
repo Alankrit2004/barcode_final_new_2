@@ -1,6 +1,7 @@
 import os
 import threading
 import psycopg2
+import base64
 from psycopg2 import pool
 import barcode
 from barcode.writer import ImageWriter
@@ -75,6 +76,17 @@ def generate_qr_code(name):
         print(f"Error generating QR Code: {e}")
         return None, None
 
+
+def image_to_base64(image_path):
+    """Converts an image file to a Base64 string."""
+    try:
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print(f"Error converting image to base64: {e}")
+        return None
+    
+
 def upload_to_supabase(image_path, unique_id, bucket):
     try:
         if not os.path.exists(image_path):
@@ -91,13 +103,33 @@ def upload_to_supabase(image_path, unique_id, bucket):
         print(f"Error uploading to Supabase: {e}")
         return None
 
-def store_barcode_in_db(name, unique_id, barcode_url):
+# def store_barcode_in_db(name, unique_id, barcode_url):
+#     try:
+#         conn = get_db_connection()
+#         cur = conn.cursor()
+#         cur.execute(
+#             "INSERT INTO products_new(name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
+#             (name, unique_id, barcode_url)
+#         )
+#         conn.commit()
+#         cur.close()
+#         release_db_connection(conn)
+#         return True
+#     except Exception as e:
+#         print(f"Database Error (Barcode): {e}")
+#         return False
+
+def store_barcode_in_db(name, unique_id, barcode_url, barcode_path):
     try:
+        barcode_base64 = image_to_base64(barcode_path)
+        if not barcode_base64:
+            return False
+
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO products_new(name, unique_id, barcode_image_path) VALUES (%s, %s, %s)",
-            (name, unique_id, barcode_url)
+            "INSERT INTO products_new (name, unique_id, barcode_image_path, barcode_image_base64) VALUES (%s, %s, %s, %s)",
+            (name, unique_id, barcode_url, barcode_base64)
         )
         conn.commit()
         cur.close()
@@ -106,14 +138,35 @@ def store_barcode_in_db(name, unique_id, barcode_url):
     except Exception as e:
         print(f"Database Error (Barcode): {e}")
         return False
+
         
-def store_qr_in_db(name, unique_id, qr_url):
+# def store_qr_in_db(name, unique_id, qr_url):
+#     try:
+#         conn = get_db_connection()
+#         cur = conn.cursor()
+#         cur.execute(
+#             "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
+#             (name, unique_id, qr_url)
+#         )
+#         conn.commit()
+#         cur.close()
+#         release_db_connection(conn)
+#         return True
+#     except Exception as e:
+#         print(f"Database Error (QR Code): {e}")
+#         return False
+
+def store_qr_in_db(name, unique_id, qr_url, qr_path):
     try:
+        qr_base64 = image_to_base64(qr_path)
+        if not qr_base64:
+            return False
+
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path) VALUES (%s, %s, %s)",
-            (name, unique_id, qr_url)
+            "INSERT INTO qr_codes_new (name, unique_id, qr_code_image_path, qr_code_image_base64) VALUES (%s, %s, %s, %s)",
+            (name, unique_id, qr_url, qr_base64)
         )
         conn.commit()
         cur.close()
@@ -122,6 +175,7 @@ def store_qr_in_db(name, unique_id, qr_url):
     except Exception as e:
         print(f"Database Error (QR Code): {e}")
         return False
+
 
 @app.route('/generate_barcode', methods=['POST'])
 def generate_barcode_api():
@@ -176,7 +230,6 @@ def generate_qr_api():
 
 def generate_unique_id_new(data):
     return f"{abs(hash(data))}{int(time.time() * 1000)}"  # Ensure hash value is positive
-  # Unique ID based on hash and timestamp
 
 # Barcode Generation
 
@@ -212,6 +265,47 @@ def generate_qr_code_new(data):
         print(f"Error generating QR Code: {e}")
         return None, None
 
+# @app.route('/generate_barcode_v2', methods=['POST'])
+# def generate_barcode_api_v2():
+#     data = request.json
+#     value = data.get("value")
+
+#     if not value:
+#         return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
+
+#     barcode_path, unique_id = generate_barcode_new(value)
+#     if not barcode_path:
+#         return jsonify({"isSuccess": False, "message": "Failed to generate barcode"}), 500
+
+#     barcode_url = upload_to_supabase(barcode_path, unique_id, SUPABASE_BUCKET)
+#     if not barcode_url:
+#         return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
+
+#     store_barcode_in_db(value, unique_id, barcode_url)
+
+#     return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
+
+# @app.route('/generate_qrcode_v2', methods=['POST'])
+# def generate_qr_api_v2():
+#     data = request.json
+#     value = data.get("value")
+
+#     if not value:
+#         return jsonify({"isSuccess": False, "message": "Missing required field: text"}), 400
+
+#     qr_path, unique_id = generate_qr_code_new(value)
+#     if not qr_path:
+#         return jsonify({"isSuccess": False, "message": "Failed to generate QR Code"}), 500
+
+#     qr_url = upload_to_supabase(qr_path, unique_id, QR_SUPABASE_BUCKET)
+#     if not qr_url:
+#         return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
+
+#     store_qr_in_db(value, unique_id, qr_url)
+
+#     return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url}}), 201
+
+
 @app.route('/generate_barcode_v2', methods=['POST'])
 def generate_barcode_api_v2():
     data = request.json
@@ -228,9 +322,10 @@ def generate_barcode_api_v2():
     if not barcode_url:
         return jsonify({"isSuccess": False, "message": "Failed to upload barcode"}), 500
 
-    store_barcode_in_db(value, unique_id, barcode_url)
+    store_barcode_in_db(value, unique_id, barcode_url, barcode_path)
 
     return jsonify({"isSuccess": True, "message": "Barcode generated", "barcode": {"unique_id": unique_id, "barcode_image_path": barcode_url}}), 201
+
 
 @app.route('/generate_qrcode_v2', methods=['POST'])
 def generate_qr_api_v2():
@@ -248,9 +343,10 @@ def generate_qr_api_v2():
     if not qr_url:
         return jsonify({"isSuccess": False, "message": "Failed to upload QR Code"}), 500
 
-    store_qr_in_db(value, unique_id, qr_url)
+    store_qr_in_db(value, unique_id, qr_url, qr_path)
 
     return jsonify({"isSuccess": True, "message": "QR Code generated", "qr_code": {"unique_id": unique_id, "qr_code_image_path": qr_url}}), 201
+
 
 
 if __name__ == '__main__':
