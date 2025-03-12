@@ -78,22 +78,23 @@ def generate_qr_code(name):
         return None, None
 
 
-def resize_and_convert_image(image_path, max_width, max_height, quality=85):
-    """Resizes the image to fit within the specified dimensions and converts it to JPEG with reduced quality."""
+def convert_to_jpeg(image_path):
+    """Converts PNG image to a smaller JPEG."""
     try:
-        with Image.open(image_path) as img:
-            img.thumbnail((max_width, max_height))
-            jpeg_path = f"{image_path}.jpg"
-            img.convert("RGB").save(jpeg_path, "JPEG", quality=quality)
-            return jpeg_path
+        image = Image.open(image_path)
+        jpeg_path = image_path.replace(".png", ".jpg")
+        image = image.convert("RGB")  # Convert PNG with alpha to RGB
+        image.save(jpeg_path, "JPEG", quality=80)  # Save with compression
+        return jpeg_path
     except Exception as e:
-        print(f"Error resizing and converting image: {e}")
+        print(f"Error converting to JPEG: {e}")
         return None
+
 
 def image_to_base64(image_path):
     """Converts an image file to a Base64 string."""
     try:
-        jpeg_path = resize_and_convert_image(image_path, 300, 300)  # Resize and convert image to JPEG
+        jpeg_path = convert_to_jpeg(image_path, 300, 300)  # Resize and convert image to JPEG
         if not jpeg_path:
             return None
         with open(jpeg_path, "rb") as image_file:
@@ -226,6 +227,7 @@ def generate_barcode_new(data):
         os.makedirs(save_dir, exist_ok=True)
 
         barcode_path = f"{save_dir}/{unique_id}"
+        barcode_path = convert_to_jpeg(barcode_path)
         code128 = barcode.get_barcode_class('code128')
         barcode_instance = code128(data, writer=ImageWriter())
         full_path = barcode_instance.save(barcode_path)
@@ -244,6 +246,7 @@ def generate_qr_code_new(data):
     try:
         unique_id = generate_unique_id_new(data)
         qr_path = f"/tmp/{unique_id}.png"
+        qr_path = convert_to_jpeg(qr_path)
         qr = qrcode.make(data)
         qr.save(qr_path)
         return qr_path, unique_id
