@@ -78,20 +78,25 @@ def generate_qr_code(name):
         return None, None
 
 
-def resize_image(image_path, max_width, max_height):
-    """Resizes the image to fit within the specified dimensions."""
+def resize_and_convert_image(image_path, max_width, max_height, quality=85):
+    """Resizes the image to fit within the specified dimensions and converts it to JPEG with reduced quality."""
     try:
         with Image.open(image_path) as img:
             img.thumbnail((max_width, max_height))
-            img.save(image_path)
+            jpeg_path = f"{image_path}.jpg"
+            img.convert("RGB").save(jpeg_path, "JPEG", quality=quality)
+            return jpeg_path
     except Exception as e:
-        print(f"Error resizing image: {e}")
+        print(f"Error resizing and converting image: {e}")
+        return None
 
 def image_to_base64(image_path):
     """Converts an image file to a Base64 string."""
     try:
-        resize_image(image_path, 300, 300)  # Resize image to fit within 300x300 pixels
-        with open(image_path, "rb") as image_file:
+        jpeg_path = resize_and_convert_image(image_path, 300, 300)  # Resize and convert image to JPEG
+        if not jpeg_path:
+            return None
+        with open(jpeg_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
         print(f"Error converting image to base64: {e}")
@@ -113,6 +118,7 @@ def upload_to_supabase(image_path, unique_id, bucket):
     except Exception as e:
         print(f"Error uploading to Supabase: {e}")
         return None
+
 
 
 def store_barcode_in_db(name, unique_id, barcode_url, barcode_path):
