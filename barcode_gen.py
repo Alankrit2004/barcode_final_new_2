@@ -226,33 +226,79 @@ def generate_barcode_new(data):
         save_dir = "/tmp"
         os.makedirs(save_dir, exist_ok=True)
 
-        barcode_path = f"{save_dir}/{unique_id}"
-        barcode_path = convert_to_jpeg(barcode_path)
+        barcode_path = f"{save_dir}/{unique_id}.png"  # Save as PNG first
         code128 = barcode.get_barcode_class('code128')
         barcode_instance = code128(data, writer=ImageWriter())
-        full_path = barcode_instance.save(barcode_path)
+        full_path = barcode_instance.save(barcode_path)  # Now the file exists
 
         if not os.path.exists(full_path):
             raise FileNotFoundError(f"Barcode image was not created: {full_path}")
 
-        return full_path, unique_id
+        # Convert to JPEG AFTER the barcode is generated
+        jpeg_path = convert_to_jpeg(full_path)
+        if jpeg_path:
+            return jpeg_path, unique_id
+        return full_path, unique_id  # Return PNG if JPEG conversion fails
     except Exception as e:
         print(f"Error generating barcode: {e}")
         return None, None
 
-# QR Code Generation
 
+
+# def generate_barcode_new(data):
+#     try:
+#         unique_id = generate_unique_id_new(data)
+#         save_dir = "/tmp"
+#         os.makedirs(save_dir, exist_ok=True)
+
+#         barcode_path = f"{save_dir}/{unique_id}"
+#         barcode_path = convert_to_jpeg(barcode_path)
+#         code128 = barcode.get_barcode_class('code128')
+#         barcode_instance = code128(data, writer=ImageWriter())
+#         full_path = barcode_instance.save(barcode_path)
+
+#         if not os.path.exists(full_path):
+#             raise FileNotFoundError(f"Barcode image was not created: {full_path}")
+
+#         return full_path, unique_id
+#     except Exception as e:
+#         print(f"Error generating barcode: {e}")
+#         return None, None
+
+
+# QR Code Generation
 def generate_qr_code_new(data):
     try:
         unique_id = generate_unique_id_new(data)
-        qr_path = f"/tmp/{unique_id}.png"
-        qr_path = convert_to_jpeg(qr_path)
+        save_dir = "/tmp"
+        os.makedirs(save_dir, exist_ok=True)
+
+        qr_path = f"{save_dir}/{unique_id}.png"  # Save as PNG first
         qr = qrcode.make(data)
         qr.save(qr_path)
-        return qr_path, unique_id
+
+        # Convert to JPEG AFTER the QR code is generated
+        jpeg_path = convert_to_jpeg(qr_path)
+        if jpeg_path:
+            return jpeg_path, unique_id
+        return qr_path, unique_id  # Return PNG if JPEG conversion fails
     except Exception as e:
         print(f"Error generating QR Code: {e}")
         return None, None
+
+
+
+# def generate_qr_code_new(data):
+#     try:
+#         unique_id = generate_unique_id_new(data)
+#         qr_path = f"/tmp/{unique_id}.png"
+#         qr_path = convert_to_jpeg(qr_path)
+#         qr = qrcode.make(data)
+#         qr.save(qr_path)
+#         return qr_path, unique_id
+#     except Exception as e:
+#         print(f"Error generating QR Code: {e}")
+#         return None, None
 
 @app.route('/generate_barcode_v2', methods=['POST'])
 def generate_barcode_api_v2():
