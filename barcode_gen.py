@@ -94,7 +94,7 @@ def convert_to_jpeg(image_path):
 def image_to_base64(image_path):
     """Converts an image file to a Base64 string."""
     try:
-        jpeg_path = convert_to_jpeg(image_path, 300, 300)  # Resize and convert image to JPEG
+        jpeg_path = convert_to_jpeg(image_path)  # Resize and convert image to JPEG
         if not jpeg_path:
             return None
         with open(jpeg_path, "rb") as image_file:
